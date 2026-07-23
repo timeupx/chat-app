@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum VerificationStatus {
+  PENDING
+  USED
+}
+
+enum VerificationCodeType {
+  ACCOUNT_ACTIVATION
+  PASSWORD_RESET
+  MFA_AUTH
+  MFA_AUTH_DISABLE
+  PHONE_CHANGE
+  AUTHORITY_CHECK
+}
+
+/**
+ * ***********************************************************************************
+ * User and authentication
+ * ***********************************************************************************
+ */
+model User {
+  id                  String        @id @default(cuid())
+  name                String
+  email               String        @unique
+  phone               String?       @unique
+  password            String
+  passChangedAt       DateTime?
+  role                Role          @default(USER)
+  status              AccountStatus @default(PENDING)
+  photo               String?
+  address             String?
+  bio                 String?
+  emailVerified       Boolean       @default(false)
+  phoneVerified       Boolean       @default(false)
+  mfaEnabled          Boolean       @default(false)
+  needsPasswordChange Boolean       @default(false)
+  isDeleted           Boolean       @default(false)
+
+  // Relationships
+  loginHistories    LoginHistory[]
+  verificationCodes Verification[]
+  trustedDevice     TrustedDevice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([phone])
+}
+
+model LoginHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  ipAddress  String?
+  device     String?
+  browser    String?
+  location   String?
+  successful Boolean
+  createdAt  DateTime @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String               @id @default(cuid())
+  userId     String
+  code       String
+  status     VerificationStatus   @default(PENDING)
+  type       VerificationCodeType
+  issuedAt   DateTime             @default(now())
+  expiresAt  DateTime
+  verifiedAt DateTime?
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailHistory {
+  id        String   @id @default(cuid())
+  sender    String
+  recipient String
+  subject   String
+  body      String
+  source    String
+  sentAt    DateTime @default(now())
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceToken String
+  ip          String?
+  userAgent   String?
+  browser     String?
+  location    String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id])
+}
+
+/**
+ * ***********************************************************************************
+ * Contact message
+ * ***********************************************************************************
+ */
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  subject   String
+  name      String
+  email     String
+  phone     String
+  message   String
+  isRead    Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * ***********************************************************************************
+ * System settings
+ * ***********************************************************************************
+ */
+
+model SystemSettings {
+  id              String        @id @default(cuid())
+  metaTitle       String?
+  metaDescription String?
+  allowSignup     Boolean       @default(true)
+  maintenanceMode Boolean       @default(false)
+  contactId       String?       @unique
+  intigrationId   String?       @unique
+  analyticsSeoId  String?       @unique
+  appearanceId    String?       @unique
+  contact         Contact?      @relation(fields: [contactId], references: [id])
+  intigration     Intigrations? @relation(fields: [intigrationId], references: [id])
+  analyticsSeo    AnalyticsSeo? @relation(fields: [analyticsSeoId], references: [id])
+  appearance      Appearance?   @relation(fields: [appearanceId], references: [id])
+}
+
+model Contact {
+  id             String          @id @default(cuid())
+  email          String?
+  phone          String?
+  address        String?
+  facebook       String?
+  x              String?
+  instagram      String?
+  youtube        String?
+  systemSettings SystemSettings?
+}
+
+model Intigrations {
+  id             String          @id @default(cuid())
+  smsApiKey      String?
+  emailApiKey    String?
+  systemSettings SystemSettings?
+}
+
+model AnalyticsSeo {
+  id             String          @id @default(cuid())
+  gatId          String?
+  gtmId          String?
+  pixelId        String?
+  systemSettings SystemSettings?
+}
+
+model Appearance {
+  id             String          @id @default(cuid())
+  logo           String?
+  favicon        String?
+  theme          String?
+  themeMode      String?
+  SystemSettings SystemSettings?
+}
