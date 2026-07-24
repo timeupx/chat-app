@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import { MulterError } from "multer";
 import sendResponse from "../utils/sendResponse";
 import { Prisma } from "../../generated/prisma";
 import ApiError from "../utils/apiError";
@@ -69,6 +70,17 @@ export const globalErrorHandler = (
 			statusCode: 401,
 			success: false,
 			message: "Token expired",
+			data: null,
+		});
+		return;
+	}
+
+	// Multer upload errors (file too large, too many files, ...)
+	if (err instanceof MulterError) {
+		sendResponse(res, {
+			statusCode: 400,
+			success: false,
+			message: err.code === "LIMIT_FILE_SIZE" ? "Image must be 5MB or smaller" : err.message,
 			data: null,
 		});
 		return;

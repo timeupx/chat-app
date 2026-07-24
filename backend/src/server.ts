@@ -6,6 +6,7 @@ process.on("uncaughtException", (err) => {
 
 import app from "./app";
 import init from "./init";
+import { initSocket } from "./socket";
 
 const port = process.env.PORT || 4000;
 
@@ -14,6 +15,9 @@ const server = app.listen(port, () => {
 	console.log(`Server is running on port ${port}`);
 	init();
 });
+
+// Socket.io shares the same HTTP server/port as Express.
+initSocket(server);
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {

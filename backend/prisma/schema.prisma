@@ -67,6 +67,9 @@ model User {
   loginHistories    LoginHistory[]
   verificationCodes Verification[]
   trustedDevice     TrustedDevice[]
+  roomBansReceived  RoomBan[]       @relation("BannedUser")
+  roomBansIssued    RoomBan[]       @relation("BannedByUser")
+  liveRooms         LiveRoom[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -126,6 +129,70 @@ model TrustedDevice {
 
   // Relationships
   user User @relation(fields: [userId], references: [id])
+}
+
+/**
+ * ***********************************************************************************
+ * Live streaming rooms
+ * ***********************************************************************************
+ */
+
+// A persistent "channel" a host sets up once via CreateLiveRoomScreen. It
+// can be toggled live/offline many times (isLive) - the LiveKit room
+// identifier used for the actual video session is simply this row's `id`.
+model LiveRoom {
+  id        String   @id @default(cuid())
+  hostId    String
+  roomName  String
+  roomImage String
+  is18Plus  Boolean  @default(false)
+  roomRules String
+  isLive    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  host     User          @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  messages LiveMessage[]
+
+  @@index([hostId])
+}
+
+// One row per chat message sent in a live room. Only the last 50 (by
+// createdAt) are ever returned to a client - see live-room.service.ts.
+model LiveMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  name      String
+  message   String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+}
+
+// Persistent ban record: a banned user is rejected at the LiveKit token
+// endpoint AND at socket room-join, until a host explicitly unbans them
+// (which just deletes this row). `roomName` here holds the same value as
+// LiveRoom.id (see above) - kept as a loose string rather than a hard FK
+// so ban history can outlive a deleted room.
+model RoomBan {
+  id        String   @id @default(cuid())
+  roomName  String
+  userId    String
+  bannedBy  String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user         User @relation("BannedUser", fields: [userId], references: [id], onDelete: Cascade)
+  bannedByUser User @relation("BannedByUser", fields: [bannedBy], references: [id], onDelete: Cascade)
+
+  @@unique([roomName, userId])
+  @@index([roomName])
 }
 
 /**

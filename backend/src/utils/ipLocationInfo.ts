@@ -31,12 +31,28 @@ export const getDeviceInfo = (userAgent: string): DeviceInfo => {
 	};
 };
 
+const isPrivateOrLoopbackIp = (ip: string): boolean => {
+	if (!ip) return true;
+	return (
+		ip === "::1" ||
+		ip === "127.0.0.1" ||
+		ip.startsWith("::ffff:127.") ||
+		ip.startsWith("192.168.") ||
+		ip.startsWith("10.")
+	);
+};
+
 export const getGeoLocation = async (
 	ip: string
 ): Promise<LocationInfo | null> => {
+	// Local/loopback IPs (e.g. developing against localhost) can't be
+	// geolocated and would otherwise wait on the request below.
+	if (isPrivateOrLoopbackIp(ip)) return null;
+
 	try {
 		const { data } = await axios.get<LocationInfo>(
-			`https://ipapi.co/${ip}/json/`
+			`https://ipapi.co/${ip}/json/`,
+			{ timeout: 5000 }
 		);
 		return data;
 	} catch (err) {
