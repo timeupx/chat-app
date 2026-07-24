@@ -22,6 +22,10 @@ class _GuestRequestsSheetState extends State<GuestRequestsSheet> {
   @override
   void initState() {
     super.initState();
+
+    // 👇 এই নতুন লাইনটি যোগ করুন
+    _requests = _roomSocket.currentGuestRequests;
+
     _sub = _roomSocket.guestRequests.listen((requests) {
       if (mounted) setState(() => _requests = requests);
     });
@@ -52,13 +56,20 @@ class _GuestRequestsSheetState extends State<GuestRequestsSheet> {
                 padding: EdgeInsets.all(16),
                 child: Text(
                   'Guest Requests',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Expanded(
                 child: _requests.isEmpty
                     ? const Center(
-                        child: Text('No pending requests', style: TextStyle(color: Colors.white54)),
+                        child: Text(
+                          'No pending requests',
+                          style: TextStyle(color: Colors.white54),
+                        ),
                       )
                     : ListView.builder(
                         controller: scrollController,
@@ -67,21 +78,36 @@ class _GuestRequestsSheetState extends State<GuestRequestsSheet> {
                           final request = _requests[index];
                           return ListTile(
                             leading: CircleAvatar(
-                              child: Text(request.name.isNotEmpty ? request.name[0].toUpperCase() : '?'),
+                              child: Text(
+                                request.name.isNotEmpty
+                                    ? request.name[0].toUpperCase()
+                                    : '?',
+                              ),
                             ),
-                            title: Text(request.name, style: const TextStyle(color: Colors.white)),
+                            title: Text(
+                              request.name,
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.check_circle, color: Colors.green),
+                                  icon: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                  ),
                                   tooltip: 'Accept',
-                                  onPressed: () => _roomSocket.acceptGuestRequest(request.userId),
+                                  onPressed: () => _roomSocket
+                                      .acceptGuestRequest(request.userId),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.cancel, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.cancel,
+                                    color: Colors.red,
+                                  ),
                                   tooltip: 'Reject',
-                                  onPressed: () => _roomSocket.rejectGuestRequest(request.userId),
+                                  onPressed: () => _roomSocket
+                                      .rejectGuestRequest(request.userId),
                                 ),
                               ],
                             ),

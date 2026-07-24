@@ -23,6 +23,10 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
   @override
   void initState() {
     super.initState();
+
+    // 👇 এই নতুন লাইনটি যোগ করুন
+    _viewers = _roomSocket.currentViewers;
+
     _sub = _roomSocket.viewerList.listen((viewers) {
       if (mounted) setState(() => _viewers = viewers);
     });
@@ -53,7 +57,10 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               final reason = reasonController.text.trim();
-              _roomSocket.banUser(viewer.userId, reason: reason.isEmpty ? null : reason);
+              _roomSocket.banUser(
+                viewer.userId,
+                reason: reason.isEmpty ? null : reason,
+              );
               Navigator.of(dialogContext).pop();
             },
             child: const Text('Ban'),
@@ -112,13 +119,20 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
                 padding: EdgeInsets.all(16),
                 child: Text(
                   'Viewers',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Expanded(
                 child: _viewers.isEmpty
                     ? const Center(
-                        child: Text('No viewers yet', style: TextStyle(color: Colors.white54)),
+                        child: Text(
+                          'No viewers yet',
+                          style: TextStyle(color: Colors.white54),
+                        ),
                       )
                     : ListView.builder(
                         controller: scrollController,
@@ -132,14 +146,30 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
 
                           return ListTile(
                             leading: CircleAvatar(
-                              child: Text(viewer.name.isNotEmpty ? viewer.name[0].toUpperCase() : '?'),
+                              child: Text(
+                                viewer.name.isNotEmpty
+                                    ? viewer.name[0].toUpperCase()
+                                    : '?',
+                              ),
                             ),
-                            title: Text(viewer.name, style: const TextStyle(color: Colors.white)),
+                            title: Text(
+                              viewer.name,
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             subtitle: tags.isEmpty
                                 ? null
-                                : Text(tags, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                : Text(
+                                    tags,
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                             trailing: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, color: Colors.white),
+                              icon: const Icon(
+                                Icons.more_vert,
+                                color: Colors.white,
+                              ),
                               onSelected: (action) {
                                 switch (action) {
                                   case 'ban':
@@ -155,14 +185,27 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
                                 }
                               },
                               itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'ban', child: Text('Ban')),
+                                const PopupMenuItem(
+                                  value: 'ban',
+                                  child: Text('Ban'),
+                                ),
                                 PopupMenuItem(
                                   value: viewer.isMuted ? 'unmute' : 'mute',
-                                  child: Text(viewer.isMuted ? 'Chat Unmute' : 'Chat Mute'),
+                                  child: Text(
+                                    viewer.isMuted
+                                        ? 'Chat Unmute'
+                                        : 'Chat Mute',
+                                  ),
                                 ),
-                                const PopupMenuItem(value: 'warn', child: Text('Warn')),
+                                const PopupMenuItem(
+                                  value: 'warn',
+                                  child: Text('Warn'),
+                                ),
                                 if (!viewer.isGuest)
-                                  const PopupMenuItem(value: 'invite', child: Text('Invite as Guest')),
+                                  const PopupMenuItem(
+                                    value: 'invite',
+                                    child: Text('Invite as Guest'),
+                                  ),
                               ],
                             ),
                           );

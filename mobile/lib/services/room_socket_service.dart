@@ -41,16 +41,25 @@ class RoomSocketService {
   final _joinRejected = StreamController<String>.broadcast();
   final _viewerList = StreamController<List<ViewerModel>>.broadcast();
   final _guestRequests = StreamController<List<GuestRequestModel>>.broadcast();
-  final _chatMessage = StreamController<({String username, String message})>.broadcast();
+  final _chatMessage =
+      StreamController<({String username, String message})>.broadcast();
   final _chatRejected = StreamController<String>.broadcast();
   final _chatMuteState = StreamController<bool>.broadcast();
   final _warning = StreamController<String>.broadcast();
   final _banned = StreamController<String>.broadcast();
   final _guestInvited = StreamController<String>.broadcast(); // hostName
   final _guestInviteAccepted = StreamController<void>.broadcast();
-  final _guestInviteDeclined = StreamController<String>.broadcast(); // declining viewer's name
+  final _guestInviteDeclined =
+      StreamController<String>.broadcast(); // declining viewer's name
   final _guestRequestRejected = StreamController<void>.broadcast();
-  final _roomStatusUpdates = StreamController<({String roomId, bool isLive})>.broadcast();
+  final _roomStatusUpdates =
+      StreamController<({String roomId, bool isLive})>.broadcast();
+
+  List<ViewerModel> _currentViewers = [];
+  List<ViewerModel> get currentViewers => _currentViewers;
+
+  List<GuestRequestModel> _currentGuestRequests = [];
+  List<GuestRequestModel> get currentGuestRequests => _currentGuestRequests;
 
   /// Emitted with a reason when the server refuses `room:join` (banned).
   Stream<String> get joinRejected => _joinRejected.stream;
@@ -61,7 +70,8 @@ class RoomSocketService {
   /// Host-only: pending "request to be guest" list.
   Stream<List<GuestRequestModel>> get guestRequests => _guestRequests.stream;
 
-  Stream<({String username, String message})> get chatMessage => _chatMessage.stream;
+  Stream<({String username, String message})> get chatMessage =>
+      _chatMessage.stream;
 
   /// Fired at the sender only when their own message was rejected (muted).
   Stream<String> get chatRejected => _chatRejected.stream;
@@ -81,7 +91,8 @@ class RoomSocketService {
 
   /// Global (not room-scoped): fired whenever any room's live status
   /// changes, for [connectLobby] listeners like LiveRoomListScreen.
-  Stream<({String roomId, bool isLive})> get roomStatusUpdates => _roomStatusUpdates.stream;
+  Stream<({String roomId, bool isLive})> get roomStatusUpdates =>
+      _roomStatusUpdates.stream;
 
   /// Connects the socket (authenticated with the stored access token) and
   /// joins [roomName] as [role] ("host" or "viewer").
@@ -120,7 +131,8 @@ class RoomSocketService {
   }
 
   void _registerListeners(io.Socket socket) {
-    Map<String, dynamic> asMap(dynamic data) => Map<String, dynamic>.from(data as Map);
+    Map<String, dynamic> asMap(dynamic data) =>
+        Map<String, dynamic>.from(data as Map);
 
     // The one-time snapshot sent right after a successful join. This was
     // previously never listened for, which meant a host who joined AFTER
@@ -133,19 +145,24 @@ class RoomSocketService {
       if (map['isHost'] == true) {
         final viewersRaw = map['viewers'] as List?;
         if (viewersRaw != null) {
-          _viewerList.add(
-            viewersRaw
-                .map((e) => ViewerModel.fromJson(Map<String, dynamic>.from(e as Map)))
-                .toList(),
-          );
+          _currentViewers = viewersRaw
+              .map(
+                (e) =>
+                    ViewerModel.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
+              .toList();
+          _viewerList.add(_currentViewers);
         }
         final requestsRaw = map['guestRequests'] as List?;
         if (requestsRaw != null) {
-          _guestRequests.add(
-            requestsRaw
-                .map((e) => GuestRequestModel.fromJson(Map<String, dynamic>.from(e as Map)))
-                .toList(),
-          );
+          _currentGuestRequests = requestsRaw
+              .map(
+                (e) => GuestRequestModel.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList();
+          _guestRequests.add(_currentGuestRequests);
         }
       }
 
@@ -157,17 +174,20 @@ class RoomSocketService {
     });
 
     socket.on('room:viewerListUpdated', (data) {
-      final viewers = (asMap(data)['viewers'] as List)
+      _currentViewers = (asMap(data)['viewers'] as List)
           .map((e) => ViewerModel.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
-      _viewerList.add(viewers);
+      _viewerList.add(_currentViewers);
     });
 
     socket.on('guest:requestListUpdated', (data) {
-      final requests = (asMap(data)['requests'] as List)
-          .map((e) => GuestRequestModel.fromJson(Map<String, dynamic>.from(e as Map)))
+      _currentGuestRequests = (asMap(data)['requests'] as List)
+          .map(
+            (e) =>
+                GuestRequestModel.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
-      _guestRequests.add(requests);
+      _guestRequests.add(_currentGuestRequests);
     });
 
     socket.on('chat:message', (data) {
@@ -179,7 +199,9 @@ class RoomSocketService {
     });
 
     socket.on('chat:rejected', (data) {
-      _chatRejected.add(asMap(data)['reason'] as String? ?? 'Message rejected.');
+      _chatRejected.add(
+        asMap(data)['reason'] as String? ?? 'Message rejected.',
+      );
     });
 
     socket.on('chat:muted', (_) => _chatMuteState.add(true));
@@ -215,23 +237,28 @@ class RoomSocketService {
 
   // ---- Chat ----
 
-  void sendChatMessage(String message) => _emit('chat:send', {'message': message});
+  void sendChatMessage(String message) =>
+      _emit('chat:send', {'message': message});
 
   // ---- Host moderation actions ----
 
   void banUser(String targetUserId, {String? reason}) =>
       _emit('host:ban', {'targetUserId': targetUserId, 'reason': ?reason});
 
-  void unbanUser(String targetUserId) => _emit('host:unban', {'targetUserId': targetUserId});
+  void unbanUser(String targetUserId) =>
+      _emit('host:unban', {'targetUserId': targetUserId});
 
-  void chatMuteUser(String targetUserId) => _emit('host:chatMute', {'targetUserId': targetUserId});
+  void chatMuteUser(String targetUserId) =>
+      _emit('host:chatMute', {'targetUserId': targetUserId});
 
-  void chatUnmuteUser(String targetUserId) => _emit('host:chatUnmute', {'targetUserId': targetUserId});
+  void chatUnmuteUser(String targetUserId) =>
+      _emit('host:chatUnmute', {'targetUserId': targetUserId});
 
   void warnUser(String targetUserId, String reason) =>
       _emit('host:warn', {'targetUserId': targetUserId, 'reason': reason});
 
-  void inviteGuest(String targetUserId) => _emit('host:inviteGuest', {'targetUserId': targetUserId});
+  void inviteGuest(String targetUserId) =>
+      _emit('host:inviteGuest', {'targetUserId': targetUserId});
 
   void acceptGuestRequest(String targetUserId) =>
       _emit('host:acceptGuestRequest', {'targetUserId': targetUserId});
