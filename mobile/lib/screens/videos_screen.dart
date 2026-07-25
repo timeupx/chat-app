@@ -31,6 +31,13 @@ class _VideosScreenState extends State<VideosScreen> {
   Widget build(BuildContext context) {
     final videos = VideoModel.mockVideos;
 
+    // IndexedStack keeps this tab mounted even when hidden. Don't build
+    // network video players until the Videos tab is actually visible —
+    // otherwise unsupported codecs on web can spam console / flash white.
+    if (!widget.isActiveTab) {
+      return const Scaffold(backgroundColor: Colors.black);
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: PageView.builder(
