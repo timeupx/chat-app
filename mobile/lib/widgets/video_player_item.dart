@@ -24,6 +24,7 @@ class VideoPlayerItem extends StatefulWidget {
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
   VideoPlayerController? _controller;
   bool _initialized = false;
+  bool _loadFailed = false;
 
   late bool _isLiked;
   late int _likeCount;
@@ -43,8 +44,22 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
     );
     _controller = controller;
 
-    await controller.initialize();
-    await controller.setLooping(true);
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+    } catch (e, st) {
+      // Unsupported codecs on Flutter web used to throw an uncaught
+      // PlatformException and leave the whole app on a white screen.
+      debugPrint('Video init failed for ${widget.video.videoUrl}: $e\n$st');
+      await controller.dispose();
+      if (!mounted) return;
+      setState(() {
+        _controller = null;
+        _loadFailed = true;
+        _initialized = false;
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _initialized = true);
@@ -122,8 +137,21 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
           onDoubleTap: _handleDoubleTap,
           child: Container(
             color: Colors.black,
-            child:
-                _initialized && controller != null
+            child: _loadFailed
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.videocam_off, color: Colors.white54, size: 48),
+                        SizedBox(height: 8),
+                        Text(
+                          'Video unavailable',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  )
+                : _initialized && controller != null
                     ? FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
