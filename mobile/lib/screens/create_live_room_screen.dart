@@ -6,10 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import '../services/live_room_service.dart';
 import 'live_room_detail_screen.dart';
 
-/// Form for setting up a new live room/channel: name, image, 18+ toggle,
-/// and rules. On submit, uploads the picked image, creates the `LiveRoom`
-/// row on the backend, then hands off to [LiveRoomDetailScreen] where the
-/// host can actually go live.
+/// Form for setting up a new live room/channel: name and image only.
+/// On submit, uploads the picked image, creates the `LiveRoom` row on the
+/// backend, then hands off to [LiveRoomDetailScreen] where the host can
+/// actually go live.
 class CreateLiveRoomScreen extends StatefulWidget {
   const CreateLiveRoomScreen({super.key});
 
@@ -23,17 +23,14 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
   final _picker = ImagePicker();
 
   final _roomNameController = TextEditingController();
-  final _roomRulesController = TextEditingController();
 
   XFile? _pickedImage;
   Uint8List? _pickedImageBytes;
-  bool _is18Plus = false;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _roomNameController.dispose();
-    _roomRulesController.dispose();
     super.dispose();
   }
 
@@ -99,8 +96,6 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
       final room = await _liveRoomService.createRoom(
         roomName: _roomNameController.text.trim(),
         roomImage: imageUrl,
-        is18Plus: _is18Plus,
-        roomRules: _roomRulesController.text.trim(),
       );
 
       if (!mounted) return;
@@ -166,28 +161,6 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildGlassField(
-                  child: TextFormField(
-                    controller: _roomRulesController,
-                    maxLines: 4,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _fieldDecoration(
-                      label: 'Room Rules',
-                      hint: 'e.g. Be respectful, no spam, English only...',
-                      icon: Icons.rule_outlined,
-                      alignLabelWithHint: true,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please add at least a short set of rules';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _build18PlusToggle(),
                 const SizedBox(height: 32),
                 _buildCreateButton(),
               ],
@@ -220,12 +193,12 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
           ],
         ),
         child: _pickedImageBytes == null
-            ? Column(
+            ? const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.add_photo_alternate_outlined, size: 44, color: Colors.white),
-                  const SizedBox(height: 10),
-                  const Text(
+                  Icon(Icons.add_photo_alternate_outlined, size: 44, color: Colors.white),
+                  SizedBox(height: 10),
+                  Text(
                     'Tap to select a room image',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
                   ),
@@ -266,7 +239,6 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
     required String label,
     required String hint,
     required IconData icon,
-    bool alignLabelWithHint = false,
   }) {
     return InputDecoration(
       labelText: label,
@@ -275,28 +247,6 @@ class _CreateLiveRoomScreenState extends State<CreateLiveRoomScreen> {
       labelStyle: const TextStyle(color: Colors.white70),
       hintStyle: const TextStyle(color: Colors.white38),
       border: InputBorder.none,
-      alignLabelWithHint: alignLabelWithHint,
-    );
-  }
-
-  Widget _build18PlusToggle() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-      ),
-      child: SwitchListTile(
-        activeThumbColor: Colors.redAccent,
-        title: const Text('18+ Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-        subtitle: const Text(
-          'Mark this room as adult-only',
-          style: TextStyle(color: Colors.white70),
-        ),
-        secondary: const Icon(Icons.explicit_outlined, color: Colors.white70),
-        value: _is18Plus,
-        onChanged: (value) => setState(() => _is18Plus = value),
-      ),
     );
   }
 

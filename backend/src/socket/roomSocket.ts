@@ -81,6 +81,16 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 			guestRequests: isHost ? roomStateManager.listGuestRequests(roomName) : undefined,
 		});
 
+		// Notify everyone already in the room when a viewer fully enters
+		// (tap-to-enter on the swipe preview). Hosts are excluded so
+		// "Host entered the room" doesn't fire when they go live.
+		if (role === "viewer") {
+			io.to(roomName).emit("room:userEntered", {
+				userId: user.userId,
+				username: user.name,
+			});
+		}
+
 		// Always re-broadcast, regardless of who just joined - this is what
 		// keeps the host's viewer list correct even if the HOST is the one
 		// reconnecting after viewers already joined (the old `if (!isHost)`

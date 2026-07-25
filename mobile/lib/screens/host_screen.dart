@@ -10,6 +10,7 @@ import '../services/live_room_service.dart';
 import '../services/livekit_service.dart';
 import '../services/room_socket_service.dart';
 import '../widgets/guest_requests_sheet.dart';
+import '../widgets/room_entry_toast.dart';
 import '../widgets/viewer_list_sheet.dart';
 
 enum _HostStatus {
@@ -39,12 +40,15 @@ class _HostScreenState extends State<HostScreen> {
   StreamSubscription<RoomEvent>? _eventsSub;
   StreamSubscription<List<GuestRequestModel>>? _guestRequestsSub;
   StreamSubscription<({String username, String message})>? _chatMessageSub;
+  StreamSubscription<({String userId, String username})>? _userEnteredSub;
 
   _HostStatus _status = _HostStatus.requestingPermissions;
   String? _errorMessage;
   bool _micEnabled = true;
   bool _cameraEnabled = true;
   int _pendingGuestRequestCount = 0;
+  String? _entryToastUsername;
+  Timer? _entryToastTimer;
 
   // Chat was previously missing entirely from this screen - the host had
   // no way to see messages viewers were sending, even though the backend
@@ -61,9 +65,11 @@ class _HostScreenState extends State<HostScreen> {
 
   @override
   void dispose() {
+    _entryToastTimer?.cancel();
     _eventsSub?.cancel();
     _guestRequestsSub?.cancel();
     _chatMessageSub?.cancel();
+    _userEnteredSub?.cancel();
     _chatScrollController.dispose();
     _chatInputController.dispose();
     // Ensure camera/mic/socket are released even if the user backs out
@@ -71,6 +77,14 @@ class _HostScreenState extends State<HostScreen> {
     unawaited(_liveKit.disconnect());
     unawaited(_roomSocket.disconnect());
     super.dispose();
+  }
+
+  void _showEntryToast(String username) {
+    _entryToastTimer?.cancel();
+    setState(() => _entryToastUsername = username);
+    _entryToastTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _entryToastUsername = null);
+    });
   }
 
   Future<void> _start() async {
@@ -131,6 +145,9 @@ class _HostScreenState extends State<HostScreen> {
             message: msg.message,
           ),
         );
+      });
+      _userEnteredSub = _roomSocket.userEntered.listen((event) {
+        if (mounted) _showEntryToast(event.username);
       });
       await _loadChatHistory();
 
@@ -283,6 +300,8 @@ class _HostScreenState extends State<HostScreen> {
                   bottom: 24,
                   child: _buildControls(),
                 ),
+              if (_entryToastUsername != null)
+                RoomEntryToast(username: _entryToastUsername!),
             ],
           ),
         ),

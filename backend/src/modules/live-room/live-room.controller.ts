@@ -3,10 +3,15 @@ import ApiError from "../../utils/apiError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { LiveRoomService } from "./live-room.service";
+import { CreateLiveRoomSchema } from "./live-room.validation";
 
 const createRoom = catchAsync(async (req, res) => {
 	const { userId } = req.user as JwtPayload;
-	const room = await LiveRoomService.createRoom(userId, req.body);
+	// Re-parse so Zod defaults (is18Plus / roomRules) are applied — the
+	// validateRequest middleware only checks the shape and does not write
+	// defaults back onto req.body.
+	const payload = CreateLiveRoomSchema.parse(req.body);
+	const room = await LiveRoomService.createRoom(userId, payload);
 
 	sendResponse(res, {
 		statusCode: 200,

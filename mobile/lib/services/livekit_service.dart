@@ -154,6 +154,26 @@ class LiveKitService {
     return newEnabled;
   }
 
+  /// Mutes or unmutes all remote audio tracks (viewer preview mode).
+  /// Uses [Track.disable]/[Track.enable] so preview stays silent without
+  /// leaving the LiveKit room. Does not affect local mic publishing.
+  Future<void> setRemoteAudioMuted(bool muted) async {
+    final room = _room;
+    if (room == null) return;
+
+    for (final participant in room.remoteParticipants.values) {
+      for (final pub in participant.audioTrackPublications) {
+        final track = pub.track;
+        if (track == null) continue;
+        if (muted) {
+          await track.disable();
+        } else {
+          await track.enable();
+        }
+      }
+    }
+  }
+
   /// Leaves the room and releases camera/mic/network resources. Safe to
   /// call even if not currently connected.
   Future<void> disconnect() async {

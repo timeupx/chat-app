@@ -51,9 +51,14 @@ class RoomSocketService {
   final _guestInviteDeclined = StreamController<String>.broadcast(); // declining viewer's name
   final _guestRequestRejected = StreamController<void>.broadcast();
   final _roomStatusUpdates = StreamController<({String roomId, bool isLive})>.broadcast();
+  final _userEntered = StreamController<({String userId, String username})>.broadcast();
 
   /// Emitted with a reason when the server refuses `room:join` (banned).
   Stream<String> get joinRejected => _joinRejected.stream;
+
+  /// Fired for everyone in the room when a viewer fully enters
+  /// (after tap-to-enter / socket `room:join` as viewer).
+  Stream<({String userId, String username})> get userEntered => _userEntered.stream;
 
   /// Host-only: the current viewer list for the moderation panel.
   Stream<List<ViewerModel>> get viewerList => _viewerList.stream;
@@ -154,6 +159,14 @@ class RoomSocketService {
 
     socket.on('room:joinRejected', (data) {
       _joinRejected.add(asMap(data)['reason'] as String? ?? 'Join rejected.');
+    });
+
+    socket.on('room:userEntered', (data) {
+      final map = asMap(data);
+      _userEntered.add((
+        userId: map['userId'] as String? ?? '',
+        username: map['username'] as String? ?? 'Someone',
+      ));
     });
 
     socket.on('room:viewerListUpdated', (data) {
@@ -328,5 +341,6 @@ class RoomSocketService {
     _guestInviteDeclined.close();
     _guestRequestRejected.close();
     _roomStatusUpdates.close();
+    _userEntered.close();
   }
 }
