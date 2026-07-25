@@ -35,4 +35,20 @@ const unbanUser = async (roomName: string, userId: string) => {
 	await db.roomBan.deleteMany({ where: { roomName, userId } });
 };
 
-export const RoomBanService = { isBanned, banUser, unbanUser };
+/** Host moderation panel: every active ban for [roomName], newest first. */
+const listBanned = async (roomName: string) => {
+	const bans = await db.roomBan.findMany({
+		where: { roomName },
+		include: { user: { select: { name: true } } },
+		orderBy: { createdAt: "desc" },
+	});
+
+	return bans.map((ban) => ({
+		userId: ban.userId,
+		name: ban.user.name,
+		reason: ban.reason,
+		createdAt: ban.createdAt.toISOString(),
+	}));
+};
+
+export const RoomBanService = { isBanned, banUser, unbanUser, listBanned };

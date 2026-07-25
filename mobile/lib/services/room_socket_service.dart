@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import '../models/banned_user_model.dart';
 import '../models/guest_request_model.dart';
 import '../models/viewer_model.dart';
 import '../utils/secure_storage_helper.dart';
@@ -41,6 +42,8 @@ class RoomSocketService {
   final _joinRejected = StreamController<String>.broadcast();
   final _viewerList = StreamController<List<ViewerModel>>.broadcast();
   final _guestRequests = StreamController<List<GuestRequestModel>>.broadcast();
+  final _bannedUsers = StreamController<List<BannedUserModel>>.broadcast();
+  List<BannedUserModel> _lastBannedUsers = const [];
   final _chatMessage = StreamController<({String username, String message})>.broadcast();
   final _chatRejected = StreamController<String>.broadcast();
   final _chatMuteState = StreamController<bool>.broadcast();
@@ -60,6 +63,12 @@ class RoomSocketService {
 
   /// Host-only: pending "request to be guest" list.
   Stream<List<GuestRequestModel>> get guestRequests => _guestRequests.stream;
+
+  /// Host-only: users currently banned from this room.
+  Stream<List<BannedUserModel>> get bannedUsers => _bannedUsers.stream;
+
+  /// Latest banned-users snapshot (broadcast streams don't replay).
+  List<BannedUserModel> get currentBannedUsers => List.unmodifiable(_lastBannedUsers);
 
   Stream<({String username, String message})> get chatMessage => _chatMessage.stream;
 
@@ -147,6 +156,14 @@ class RoomSocketService {
                 .toList(),
           );
         }
+        final bannedRaw = map['bannedUsers'] as List?;
+        if (bannedRaw != null) {
+          _setBannedUsers(
+            bannedRaw
+                .map((e) => BannedUserModel.fromJson(Map<String, dynamic>.from(e as Map)))
+                .toList(),
+          );
+        }
       }
 
       if (map['isMuted'] == true) _chatMuteState.add(true);
@@ -168,6 +185,14 @@ class RoomSocketService {
           .map((e) => GuestRequestModel.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
       _guestRequests.add(requests);
+    });
+
+    socket.on('room:bannedListUpdated', (data) {
+      _setBannedUsers(
+        (asMap(data)['bannedUsers'] as List)
+            .map((e) => BannedUserModel.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+      );
     });
 
     socket.on('chat:message', (data) {
@@ -204,6 +229,11 @@ class RoomSocketService {
     });
 
     socket.on('guest:requestRejected', (_) => _guestRequestRejected.add(null));
+  }
+
+  void _setBannedUsers(List<BannedUserModel> users) {
+    _lastBannedUsers = users;
+    _bannedUsers.add(users);
   }
 
   void _emit(String event, [Map<String, dynamic> data = const {}]) {
@@ -310,6 +340,7 @@ class RoomSocketService {
     _socket?.dispose();
     _socket = null;
     _roomName = null;
+    _lastBannedUsers = const [];
   }
 
   void dispose() {
@@ -318,6 +349,7 @@ class RoomSocketService {
     _joinRejected.close();
     _viewerList.close();
     _guestRequests.close();
+    _bannedUsers.close();
     _chatMessage.close();
     _chatRejected.close();
     _chatMuteState.close();
