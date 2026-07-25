@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter: Chrome (web)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
+    },
+    {
+      "name": "Flutter: Chrome (GO LIVE / camera)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--web-browser-flag=--use-fake-ui-for-media-stream",
+        "--web-browser-flag=--use-fake-device-for-media-stream"
+      ]
+    }
+  ]
+}
