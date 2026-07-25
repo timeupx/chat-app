@@ -169,9 +169,22 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 	);
 
 	socket.on("host:unban", async ({ roomName, targetUserId }: { roomName: string; targetUserId: string }) => {
-		if (!roomStateManager.isHost(roomName, user.userId)) return;
+		if (!roomName || !targetUserId) {
+			socket.emit("host:unbanAck", { targetUserId, ok: false, reason: "missing fields" });
+			return;
+		}
+		if (!roomStateManager.isHost(roomName, user.userId)) {
+			socket.emit("host:unbanAck", { targetUserId, ok: false, reason: "not host" });
+			return;
+		}
+
 		await RoomBanService.unbanUser(roomName, targetUserId);
-		socket.emit("host:unbanAck", { targetUserId });
+		const bannedUsers = await RoomBanService.listBanned(roomName);
+
+		// Ack + list on this socket directly so the host UI updates even if
+		// emitToUser can't resolve the host's in-memory viewer entry.
+		socket.emit("host:unbanAck", { targetUserId, ok: true });
+		socket.emit("room:bannedListUpdated", { bannedUsers });
 		await broadcastBannedList(io, roomName);
 	});
 

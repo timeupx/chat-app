@@ -195,6 +195,17 @@ class RoomSocketService {
       );
     });
 
+    // Backup if `room:bannedListUpdated` is missed: drop the user locally
+    // when the server acknowledges the unban.
+    socket.on('host:unbanAck', (data) {
+      final targetUserId = asMap(data)['targetUserId'] as String?;
+      if (targetUserId == null) return;
+      if (asMap(data)['ok'] == false) return;
+      _setBannedUsers(
+        _lastBannedUsers.where((u) => u.userId != targetUserId).toList(),
+      );
+    });
+
     socket.on('chat:message', (data) {
       final map = asMap(data);
       _chatMessage.add((
@@ -252,7 +263,12 @@ class RoomSocketService {
   void banUser(String targetUserId, {String? reason}) =>
       _emit('host:ban', {'targetUserId': targetUserId, 'reason': ?reason});
 
-  void unbanUser(String targetUserId) => _emit('host:unban', {'targetUserId': targetUserId});
+  void unbanUser(String targetUserId) {
+    // Optimistic cache update so the Banned Users sheet can clear the row
+    // even before the next broadcast arrives.
+    _setBannedUsers(_lastBannedUsers.where((u) => u.userId != targetUserId).toList());
+    _emit('host:unban', {'targetUserId': targetUserId});
+  }
 
   void chatMuteUser(String targetUserId) => _emit('host:chatMute', {'targetUserId': targetUserId});
 

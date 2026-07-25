@@ -37,29 +37,43 @@ class _BannedUsersSheetState extends State<BannedUsersSheet> {
   }
 
   Future<void> _promptUnban(BannedUserModel user) async {
+    // Confirm on the root navigator so the dialog is not trapped under /
+    // behind this modal bottom sheet (common on Flutter web).
     final confirmed = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Unban ${user.name}?'),
+        backgroundColor: const Color(0xFF2C2C2E),
+        title: Text(
+          'Unban ${user.name}?',
+          style: const TextStyle(color: Colors.white),
+        ),
         content: const Text(
           'They will be able to rejoin this room.',
+          style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(true),
             child: const Text('Unban'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      _roomSocket.unbanUser(user.userId);
-    }
+    if (!mounted || confirmed != true) return;
+
+    // Optimistic UI so the row disappears immediately; the socket broadcast
+    // / unbanAck will reconcile the canonical list right after.
+    setState(() {
+      _bannedUsers = _bannedUsers.where((u) => u.userId != user.userId).toList();
+    });
+    _roomSocket.unbanUser(user.userId);
   }
 
   @override
@@ -106,7 +120,11 @@ class _BannedUsersSheetState extends State<BannedUsersSheet> {
                                     reason,
                                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                                   ),
-                            trailing: TextButton(
+                            trailing: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.white24,
+                                foregroundColor: Colors.white,
+                              ),
                               onPressed: () => _promptUnban(user),
                               child: const Text('Unban'),
                             ),
