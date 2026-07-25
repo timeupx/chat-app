@@ -44,6 +44,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   StreamSubscription<String>? _warningSub;
   StreamSubscription<String>? _guestInvitedSub;
   StreamSubscription<void>? _guestInviteAcceptedSub;
+  StreamSubscription<void>? _guestRemovedSub;
 
   // The welcome system message is pre-seeded; the last 50 persisted
   // messages are backfilled by [_loadChatHistory], and every message from
@@ -60,6 +61,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _isChatMuted = false;
   bool _isGuest = false;
   bool _isBecomingGuest = false;
+  bool _isLeavingGuest = false;
   bool _guestMicEnabled = true;
 
   @override
@@ -79,6 +81,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _warningSub?.cancel();
     _guestInvitedSub?.cancel();
     _guestInviteAcceptedSub?.cancel();
+    _guestRemovedSub?.cancel();
     _chatScrollController.dispose();
     _chatInputController.dispose();
     unawaited(_liveKit.disconnect());
@@ -278,6 +281,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _guestInviteAcceptedSub = _roomSocket.guestInviteAccepted.listen((_) {
       _becomeGuest();
     });
+
+    // Host removed this user from co-host - stop publishing and return to
+    // normal viewer UI (still watching the stream).
+    _guestRemovedSub = _roomSocket.guestRemoved.listen((_) {
+      _leaveGuest(removedByHost: true);
+    });
   }
 
   Future<void> _becomeGuest() async {
@@ -295,6 +304,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       setState(() {
         _isGuest = true;
         _isBecomingGuest = false;
+        _guestMicEnabled = true;
       });
     } on LiveKitServiceException catch (e) {
       if (!mounted) return;
@@ -302,6 +312,49 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Could not join as guest: ${e.message}')));
+    }
+  }
+
+  /// Stops co-hosting: unpublish local tracks, tell the server, reconnect as
+  /// a subscribe-only viewer so the user keeps watching the host.
+  Future<void> _leaveGuest({bool removedByHost = false}) async {
+    if (!mounted || !_isGuest || _isLeavingGuest) return;
+
+    setState(() => _isLeavingGuest = true);
+
+    if (!removedByHost) {
+      _roomSocket.leaveGuest();
+    }
+
+    try {
+      await _liveKit.stopPublishing();
+      // Rejoin as viewer so camera/mic stay off and host video keeps playing.
+      await _liveKit.connect(
+        roomName: widget.roomName,
+        identity: 'viewer_${DateTime.now().millisecondsSinceEpoch}',
+        role: LiveKitRole.viewer,
+        displayName: 'Viewer',
+      );
+    } on LiveKitServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLeavingGuest = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not leave guest mode: ${e.message}')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isGuest = false;
+      _isLeavingGuest = false;
+      _guestMicEnabled = true;
+    });
+
+    if (removedByHost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('The host removed you from co-hosting.')),
+      );
     }
   }
 
@@ -386,8 +439,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
               Positioned(right: 16, bottom: 100, child: _buildGiftButton()),
               if (!_isGuest)
                 Positioned(right: 16, bottom: 168, child: _buildRequestGuestButton()),
+              if (_isGuest)
+                Positioned(right: 16, bottom: 168, child: _buildLeaveLiveButton()),
               if (_flyingGift != null) _GiftFlyAnimation(gift: _flyingGift!),
-              if (_isBecomingGuest) const _BecomingGuestOverlay(),
+              if (_isBecomingGuest)
+                const _BecomingGuestOverlay(message: 'Joining as guest...'),
+              if (_isLeavingGuest)
+                const _BecomingGuestOverlay(message: 'Leaving co-host...'),
             ],
           ),
         ),
@@ -612,6 +670,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ),
     );
   }
+
+  Widget _buildLeaveLiveButton() {
+    return FloatingActionButton.extended(
+      heroTag: 'leaveLive',
+      onPressed: () => _leaveGuest(),
+      backgroundColor: Colors.redAccent,
+      icon: const Icon(Icons.call_end, size: 18),
+      label: const Text('Leave Live'),
+    );
+  }
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -735,20 +803,22 @@ class _GiftFlyAnimation extends StatelessWidget {
 }
 
 class _BecomingGuestOverlay extends StatelessWidget {
-  const _BecomingGuestOverlay();
+  final String message;
+
+  const _BecomingGuestOverlay({required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
       child: Container(
         color: Colors.black87,
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text('Joining as guest...', style: TextStyle(color: Colors.white)),
+              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 16),
+              Text(message, style: const TextStyle(color: Colors.white)),
             ],
           ),
         ),

@@ -6,8 +6,8 @@ import '../models/viewer_model.dart';
 import '../services/room_socket_service.dart';
 
 /// Host-only moderation panel: current viewers with Ban / Chat Mute / Warn /
-/// Invite-as-Guest actions. Backed live by [RoomSocketService.viewerList] -
-/// nothing here is mocked.
+/// Invite-as-Guest / Remove Guest actions. Backed live by
+/// [RoomSocketService.viewerList] - nothing here is mocked.
 class ViewerListSheet extends StatefulWidget {
   const ViewerListSheet({super.key});
 
@@ -152,6 +152,8 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
                                     _promptWarn(viewer);
                                   case 'invite':
                                     _roomSocket.inviteGuest(viewer.userId);
+                                  case 'removeGuest':
+                                    _roomSocket.removeGuest(viewer.userId);
                                 }
                               },
                               itemBuilder: (context) => [
@@ -163,6 +165,11 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
                                 const PopupMenuItem(value: 'warn', child: Text('Warn')),
                                 if (!viewer.isGuest)
                                   const PopupMenuItem(value: 'invite', child: Text('Invite as Guest')),
+                                if (viewer.isGuest)
+                                  const PopupMenuItem(
+                                    value: 'removeGuest',
+                                    child: Text('Remove Guest'),
+                                  ),
                               ],
                             ),
                           );

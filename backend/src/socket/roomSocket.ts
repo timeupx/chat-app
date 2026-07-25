@@ -205,6 +205,15 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 		broadcastGuestRequests(io, roomName);
 	});
 
+	socket.on("host:removeGuest", ({ roomName, targetUserId }: { roomName: string; targetUserId: string }) => {
+		if (!roomStateManager.isHost(roomName, user.userId)) return;
+
+		roomStateManager.setGuest(roomName, targetUserId, false);
+		// Tell the guest to stop publishing and drop back to viewer UI.
+		emitToUser(io, roomName, targetUserId, "guest:removed");
+		broadcastViewerList(io, roomName);
+	});
+
 	// ---- Viewer-initiated guest flows ----
 
 	socket.on("viewer:requestGuest", ({ roomName }: { roomName: string }) => {
@@ -221,5 +230,10 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 	socket.on("guest:declineInvite", ({ roomName }: { roomName: string }) => {
 		const hostId = roomStateManager.getHostUserId(roomName);
 		if (hostId) emitToUser(io, roomName, hostId, "guest:inviteDeclined", { userId: user.userId, name: user.name });
+	});
+
+	socket.on("guest:leave", ({ roomName }: { roomName: string }) => {
+		roomStateManager.setGuest(roomName, user.userId, false);
+		broadcastViewerList(io, roomName);
 	});
 }

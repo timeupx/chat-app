@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:livekit_client/livekit_client.dart';
@@ -152,6 +152,19 @@ class LiveKitService {
     final newEnabled = !participant.isMicrophoneEnabled();
     await participant.setMicrophoneEnabled(newEnabled);
     return newEnabled;
+  }
+
+  /// Stops publishing local camera/mic (guest demotion) without leaving the
+  /// room. Safe if nothing is published yet.
+  Future<void> stopPublishing() async {
+    final participant = localParticipant;
+    if (participant == null) return;
+    try {
+      await participant.setCameraEnabled(false);
+      await participant.setMicrophoneEnabled(false);
+    } catch (e) {
+      debugPrint('stopPublishing failed: $e');
+    }
   }
 
   /// Leaves the room and releases camera/mic/network resources. Safe to

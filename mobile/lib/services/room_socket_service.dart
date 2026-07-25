@@ -50,6 +50,7 @@ class RoomSocketService {
   final _guestInviteAccepted = StreamController<void>.broadcast();
   final _guestInviteDeclined = StreamController<String>.broadcast(); // declining viewer's name
   final _guestRequestRejected = StreamController<void>.broadcast();
+  final _guestRemoved = StreamController<void>.broadcast(); // host kicked this guest
   final _roomStatusUpdates = StreamController<({String roomId, bool isLive})>.broadcast();
 
   /// Emitted with a reason when the server refuses `room:join` (banned).
@@ -78,6 +79,9 @@ class RoomSocketService {
   Stream<void> get guestInviteAccepted => _guestInviteAccepted.stream;
   Stream<String> get guestInviteDeclined => _guestInviteDeclined.stream;
   Stream<void> get guestRequestRejected => _guestRequestRejected.stream;
+
+  /// Fired on the guest's own socket when the host removes them from co-host.
+  Stream<void> get guestRemoved => _guestRemoved.stream;
 
   /// Global (not room-scoped): fired whenever any room's live status
   /// changes, for [connectLobby] listeners like LiveRoomListScreen.
@@ -204,6 +208,8 @@ class RoomSocketService {
     });
 
     socket.on('guest:requestRejected', (_) => _guestRequestRejected.add(null));
+
+    socket.on('guest:removed', (_) => _guestRemoved.add(null));
   }
 
   void _emit(String event, [Map<String, dynamic> data = const {}]) {
@@ -239,6 +245,9 @@ class RoomSocketService {
   void rejectGuestRequest(String targetUserId) =>
       _emit('host:rejectGuestRequest', {'targetUserId': targetUserId});
 
+  void removeGuest(String targetUserId) =>
+      _emit('host:removeGuest', {'targetUserId': targetUserId});
+
   // ---- Viewer-initiated guest flows ----
 
   void requestToBeGuest() => _emit('viewer:requestGuest');
@@ -246,6 +255,9 @@ class RoomSocketService {
   void acceptGuestInvite() => _emit('guest:acceptInvite');
 
   void declineGuestInvite() => _emit('guest:declineInvite');
+
+  /// Guest voluntarily stops co-hosting (stays in the room as a viewer).
+  void leaveGuest() => _emit('guest:leave');
 
   // ---- Lobby (LiveRoomListScreen + LiveRoomDetailScreen) ----
 
@@ -327,6 +339,7 @@ class RoomSocketService {
     _guestInviteAccepted.close();
     _guestInviteDeclined.close();
     _guestRequestRejected.close();
+    _guestRemoved.close();
     _roomStatusUpdates.close();
   }
 }
