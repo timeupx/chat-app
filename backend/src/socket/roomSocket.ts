@@ -38,6 +38,14 @@ function broadcastGuestRequests(io: Server, roomName: string) {
 	}
 }
 
+async function broadcastBannedList(io: Server, roomName: string) {
+	const hostId = roomStateManager.getHostUserId(roomName);
+	if (!hostId) return;
+
+	const bannedUsers = await RoomBanService.listBanned(roomName);
+	emitToUser(io, roomName, hostId, "room:bannedListUpdated", { bannedUsers });
+}
+
 export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 	const user = socket.data.user;
 
@@ -66,6 +74,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 		});
 
 		const isHost = roomStateManager.isHost(roomName, user.userId);
+		const bannedUsers = isHost ? await RoomBanService.listBanned(roomName) : undefined;
 		socket.emit("room:joined", {
 			isHost,
 			isMuted: viewer.isMuted,
@@ -79,6 +88,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 					}))
 				: undefined,
 			guestRequests: isHost ? roomStateManager.listGuestRequests(roomName) : undefined,
+			bannedUsers,
 		});
 
 		// Always re-broadcast, regardless of who just joined - this is what
@@ -88,6 +98,7 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 		// `room:joined` snapshot, which the client didn't even listen for).
 		broadcastViewerList(io, roomName);
 		broadcastGuestRequests(io, roomName);
+		if (isHost) await broadcastBannedList(io, roomName);
 	});
 
 	socket.on("room:leave", ({ roomName }: { roomName: string }) => {
@@ -153,13 +164,28 @@ export function registerRoomSocketHandlers(io: Server, socket: Socket) {
 			roomStateManager.leave(roomName, targetUserId);
 			broadcastViewerList(io, roomName);
 			broadcastGuestRequests(io, roomName);
+			await broadcastBannedList(io, roomName);
 		}
 	);
 
 	socket.on("host:unban", async ({ roomName, targetUserId }: { roomName: string; targetUserId: string }) => {
-		if (!roomStateManager.isHost(roomName, user.userId)) return;
+		if (!roomName || !targetUserId) {
+			socket.emit("host:unbanAck", { targetUserId, ok: false, reason: "missing fields" });
+			return;
+		}
+		if (!roomStateManager.isHost(roomName, user.userId)) {
+			socket.emit("host:unbanAck", { targetUserId, ok: false, reason: "not host" });
+			return;
+		}
+
 		await RoomBanService.unbanUser(roomName, targetUserId);
-		socket.emit("host:unbanAck", { targetUserId });
+		const bannedUsers = await RoomBanService.listBanned(roomName);
+
+		// Ack + list on this socket directly so the host UI updates even if
+		// emitToUser can't resolve the host's in-memory viewer entry.
+		socket.emit("host:unbanAck", { targetUserId, ok: true });
+		socket.emit("room:bannedListUpdated", { bannedUsers });
+		await broadcastBannedList(io, roomName);
 	});
 
 	socket.on("host:chatMute", ({ roomName, targetUserId }: { roomName: string; targetUserId: string }) => {

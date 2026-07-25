@@ -9,6 +9,8 @@ import '../models/guest_request_model.dart';
 import '../services/live_room_service.dart';
 import '../services/livekit_service.dart';
 import '../services/room_socket_service.dart';
+import '../models/banned_user_model.dart';
+import '../widgets/banned_users_sheet.dart';
 import '../widgets/guest_requests_sheet.dart';
 import '../widgets/viewer_list_sheet.dart';
 
@@ -38,6 +40,7 @@ class _HostScreenState extends State<HostScreen> {
   final _liveRoomService = LiveRoomService();
   StreamSubscription<RoomEvent>? _eventsSub;
   StreamSubscription<List<GuestRequestModel>>? _guestRequestsSub;
+  StreamSubscription<List<BannedUserModel>>? _bannedUsersSub;
   StreamSubscription<({String username, String message})>? _chatMessageSub;
 
   _HostStatus _status = _HostStatus.requestingPermissions;
@@ -45,6 +48,7 @@ class _HostScreenState extends State<HostScreen> {
   bool _micEnabled = true;
   bool _cameraEnabled = true;
   int _pendingGuestRequestCount = 0;
+  int _bannedUserCount = 0;
 
   // Chat was previously missing entirely from this screen - the host had
   // no way to see messages viewers were sending, even though the backend
@@ -63,6 +67,7 @@ class _HostScreenState extends State<HostScreen> {
   void dispose() {
     _eventsSub?.cancel();
     _guestRequestsSub?.cancel();
+    _bannedUsersSub?.cancel();
     _chatMessageSub?.cancel();
     _chatScrollController.dispose();
     _chatInputController.dispose();
@@ -116,6 +121,11 @@ class _HostScreenState extends State<HostScreen> {
       _guestRequestsSub = _roomSocket.guestRequests.listen((requests) {
         if (mounted) {
           setState(() => _pendingGuestRequestCount = requests.length);
+        }
+      });
+      _bannedUsersSub = _roomSocket.bannedUsers.listen((users) {
+        if (mounted) {
+          setState(() => _bannedUserCount = users.length);
         }
       });
 
@@ -241,6 +251,15 @@ class _HostScreenState extends State<HostScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => const GuestRequestsSheet(),
+    );
+  }
+
+  void _openBannedUsers() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const BannedUsersSheet(),
     );
   }
 
@@ -384,6 +403,13 @@ class _HostScreenState extends State<HostScreen> {
           tooltip: 'Guest Requests',
           badgeCount: _pendingGuestRequestCount,
           onTap: _openGuestRequests,
+        ),
+        const SizedBox(width: 8),
+        _TopBarIconButton(
+          icon: Icons.block,
+          tooltip: 'Banned Users',
+          badgeCount: _bannedUserCount,
+          onTap: _openBannedUsers,
         ),
       ],
     );
