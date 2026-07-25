@@ -10,6 +10,7 @@ import '../utils/jwt_helper.dart';
 import '../utils/secure_storage_helper.dart';
 import 'create_live_room_screen.dart';
 import 'live_room_detail_screen.dart';
+import 'swipeable_live_screen.dart';
 
 enum _ListStatus { loading, ready, error }
 
@@ -135,6 +136,31 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
     ).push(MaterialPageRoute(builder: (_) => LiveRoomDetailScreen(roomId: room.id)));
   }
 
+  /// Live rooms open the Bigo-style vertical swipe feed directly.
+  /// Offline rooms (and the host's own room management) still use detail.
+  void _openRoom(LiveRoomModel room) {
+    if (!room.isLive) {
+      _openRoomDetail(room);
+      return;
+    }
+
+    final liveRooms = _rooms.where((r) => r.isLive).toList();
+    final index = liveRooms.indexWhere((r) => r.id == room.id);
+    if (index < 0) {
+      _openRoomDetail(room);
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SwipeableLiveScreen(
+          rooms: liveRooms,
+          initialIndex: index,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,7 +228,7 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
             ),
             itemBuilder: (context, index) {
               final room = _rooms[index];
-              return _LiveRoomCard(room: room, onTap: () => _openRoomDetail(room));
+              return _LiveRoomCard(room: room, onTap: () => _openRoom(room));
             },
           ),
         );

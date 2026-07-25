@@ -8,6 +8,7 @@ import '../models/gift_model.dart';
 import '../services/live_room_service.dart';
 import '../services/livekit_service.dart';
 import '../services/room_socket_service.dart';
+import '../widgets/room_entry_toast.dart';
 
 enum _ViewerStatus { connecting, watching, error }
 
@@ -44,6 +45,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   StreamSubscription<String>? _warningSub;
   StreamSubscription<String>? _guestInvitedSub;
   StreamSubscription<void>? _guestInviteAcceptedSub;
+  StreamSubscription<({String userId, String username})>? _userEnteredSub;
 
   // The welcome system message is pre-seeded; the last 50 persisted
   // messages are backfilled by [_loadChatHistory], and every message from
@@ -56,6 +58,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   _ViewerStatus _status = _ViewerStatus.connecting;
   String? _errorMessage;
   GiftModel? _flyingGift;
+  String? _entryToastUsername;
+  Timer? _entryToastTimer;
 
   bool _isChatMuted = false;
   bool _isGuest = false;
@@ -70,6 +74,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
+    _entryToastTimer?.cancel();
     _eventsSub?.cancel();
     _joinRejectedSub?.cancel();
     _bannedSub?.cancel();
@@ -79,11 +84,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _warningSub?.cancel();
     _guestInvitedSub?.cancel();
     _guestInviteAcceptedSub?.cancel();
+    _userEnteredSub?.cancel();
     _chatScrollController.dispose();
     _chatInputController.dispose();
     unawaited(_liveKit.disconnect());
     unawaited(_roomSocket.disconnect());
     super.dispose();
+  }
+
+  void _showEntryToast(String username) {
+    _entryToastTimer?.cancel();
+    setState(() => _entryToastUsername = username);
+    _entryToastTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _entryToastUsername = null);
+    });
   }
 
   Future<void> _connect() async {
@@ -278,6 +292,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _guestInviteAcceptedSub = _roomSocket.guestInviteAccepted.listen((_) {
       _becomeGuest();
     });
+
+    _userEnteredSub = _roomSocket.userEntered.listen((event) {
+      if (mounted) _showEntryToast(event.username);
+    });
   }
 
   Future<void> _becomeGuest() async {
@@ -388,6 +406,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
                 Positioned(right: 16, bottom: 168, child: _buildRequestGuestButton()),
               if (_flyingGift != null) _GiftFlyAnimation(gift: _flyingGift!),
               if (_isBecomingGuest) const _BecomingGuestOverlay(),
+              if (_entryToastUsername != null)
+                RoomEntryToast(username: _entryToastUsername!),
             ],
           ),
         ),

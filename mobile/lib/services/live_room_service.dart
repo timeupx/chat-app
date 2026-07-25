@@ -92,8 +92,6 @@ class LiveRoomService {
   Future<LiveRoomModel> createRoom({
     required String roomName,
     required String roomImage,
-    required bool is18Plus,
-    required String roomRules,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/live-rooms');
     final response = await http
@@ -103,8 +101,6 @@ class LiveRoomService {
           body: jsonEncode({
             'roomName': roomName,
             'roomImage': roomImage,
-            'is18Plus': is18Plus,
-            'roomRules': roomRules,
           }),
         )
         .timeout(_timeout);

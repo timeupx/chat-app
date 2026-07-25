@@ -9,7 +9,15 @@ const hostSelect = {
 } as const;
 
 const createRoom = async (hostId: string, payload: TCreateLiveRoom) => {
-	return db.liveRoom.create({ data: { ...payload, hostId } });
+	return db.liveRoom.create({
+		data: {
+			hostId,
+			roomName: payload.roomName,
+			roomImage: payload.roomImage,
+			is18Plus: payload.is18Plus ?? false,
+			roomRules: payload.roomRules ?? "",
+		},
+	});
 };
 
 // Room list for LiveRoomListScreen's grid. `viewerCount` comes from the
