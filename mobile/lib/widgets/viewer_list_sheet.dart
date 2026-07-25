@@ -6,8 +6,8 @@ import '../models/viewer_model.dart';
 import '../services/room_socket_service.dart';
 
 /// Host-only moderation panel: current viewers with Ban / Chat Mute / Warn /
-/// Invite-as-Guest actions. Backed live by [RoomSocketService.viewerList] -
-/// nothing here is mocked.
+/// Invite-as-Guest / Remove Guest actions. Backed live by
+/// [RoomSocketService.viewerList] - nothing here is mocked.
 class ViewerListSheet extends StatefulWidget {
   const ViewerListSheet({super.key});
 
