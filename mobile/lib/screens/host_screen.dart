@@ -9,6 +9,7 @@ import '../models/guest_request_model.dart';
 import '../services/live_room_service.dart';
 import '../services/livekit_service.dart';
 import '../services/room_socket_service.dart';
+import '../widgets/banned_users_sheet.dart';
 import '../widgets/guest_requests_sheet.dart';
 import '../widgets/viewer_list_sheet.dart';
 
@@ -244,6 +245,15 @@ class _HostScreenState extends State<HostScreen> {
     );
   }
 
+  void _openBannedUsers() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => BannedUsersSheet(roomName: widget.roomName),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -321,7 +331,10 @@ class _HostScreenState extends State<HostScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 2),
                         child: RichText(
                           text: TextSpan(
-                            style: const TextStyle(fontSize: 13, color: Colors.white),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
                             children: [
                               TextSpan(
                                 text: '${message.username}: ',
@@ -348,10 +361,16 @@ class _HostScreenState extends State<HostScreen> {
                   onSubmitted: (_) => _sendMessage(),
                   decoration: InputDecoration(
                     hintText: 'Say something...',
-                    hintStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+                    hintStyle: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
                     filled: true,
                     fillColor: Colors.white24,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
@@ -377,6 +396,12 @@ class _HostScreenState extends State<HostScreen> {
           icon: Icons.groups,
           tooltip: 'Viewers',
           onTap: _openViewerList,
+        ),
+        const SizedBox(width: 8),
+        _TopBarIconButton(
+          icon: Icons.block,
+          tooltip: 'Banned Users',
+          onTap: _openBannedUsers,
         ),
         const SizedBox(width: 8),
         _TopBarIconButton(

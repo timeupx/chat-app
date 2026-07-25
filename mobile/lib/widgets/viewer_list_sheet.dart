@@ -18,6 +18,7 @@ class ViewerListSheet extends StatefulWidget {
 class _ViewerListSheetState extends State<ViewerListSheet> {
   final _roomSocket = RoomSocketService.instance;
   List<ViewerModel> _viewers = [];
+  bool _showMutedOnly = false;
   StreamSubscription<List<ViewerModel>>? _sub;
 
   @override
@@ -115,19 +116,42 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
           ),
           child: Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Viewers',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Viewers',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'Show Muted Only',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    Switch(
+                      value: _showMutedOnly,
+                      activeColor: Colors.amber,
+                      onChanged: (value) {
+                        setState(() => _showMutedOnly = value);
+                      },
+                    ),
+                  ],
                 ),
               ),
               Expanded(
-                child: _viewers.isEmpty
+                child:
+                    (_showMutedOnly
+                            ? _viewers
+                                  .where((viewer) => viewer.isMuted)
+                                  .toList()
+                            : _viewers)
+                        .isEmpty
                     ? const Center(
                         child: Text(
                           'No viewers yet',
@@ -136,9 +160,16 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
                       )
                     : ListView.builder(
                         controller: scrollController,
-                        itemCount: _viewers.length,
+                        itemCount: _showMutedOnly
+                            ? _viewers.where((viewer) => viewer.isMuted).length
+                            : _viewers.length,
                         itemBuilder: (context, index) {
-                          final viewer = _viewers[index];
+                          final viewers = _showMutedOnly
+                              ? _viewers
+                                    .where((viewer) => viewer.isMuted)
+                                    .toList()
+                              : _viewers;
+                          final viewer = viewers[index];
                           final tags = [
                             if (viewer.isGuest) 'Guest',
                             if (viewer.isMuted) 'Chat muted',
