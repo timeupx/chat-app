@@ -4,11 +4,9 @@
 class LiveRoomModel {
   final String id;
 
-  /// Only present on the list response (not the detail response). Used
-  /// purely for the client-side "is this my own room" sort in
-  /// LiveRoomListScreen - never for anything security-sensitive, since a
-  /// client-side `hostId == currentUserId` check can't be trusted for that
-  /// (see [isHost]).
+  /// Only present on the list response historically; detail now also
+  /// returns it so viewers can resolve the host's LiveKit identity
+  /// (`identity == userId`) for the video grid.
   final String? hostId;
 
   final String roomName;
@@ -18,6 +16,12 @@ class LiveRoomModel {
   final String hostName;
   final String? hostPhoto;
   final int viewerCount;
+
+  /// Beauty filter preset chosen at room creation (e.g. Natural, Smooth).
+  final String filterName;
+
+  /// Bigo-style seat count: 3, 6, or 9. Host always occupies seat 1.
+  final int slotCount;
 
   /// Only present on the single-room detail response, not the list.
   final String? roomRules;
@@ -37,11 +41,18 @@ class LiveRoomModel {
     required this.hostName,
     this.hostPhoto,
     required this.viewerCount,
+    this.filterName = 'Natural',
+    this.slotCount = 6,
     this.roomRules,
     this.isHost,
   });
 
   factory LiveRoomModel.fromJson(Map<String, dynamic> json) {
+    final rawSlots = json['slotCount'];
+    final slotCount = rawSlots is int
+        ? rawSlots
+        : int.tryParse('$rawSlots') ?? 6;
+
     return LiveRoomModel(
       id: json['id'] as String,
       hostId: json['hostId'] as String?,
@@ -52,6 +63,8 @@ class LiveRoomModel {
       hostName: json['hostName'] as String? ?? 'Unknown',
       hostPhoto: json['hostPhoto'] as String?,
       viewerCount: json['viewerCount'] as int? ?? 0,
+      filterName: json['filterName'] as String? ?? 'Natural',
+      slotCount: [3, 6, 9].contains(slotCount) ? slotCount : 6,
       roomRules: json['roomRules'] as String?,
       isHost: json['isHost'] as bool?,
     );
@@ -70,6 +83,8 @@ class LiveRoomModel {
       hostName: hostName,
       hostPhoto: hostPhoto,
       viewerCount: viewerCount,
+      filterName: filterName,
+      slotCount: slotCount,
       roomRules: roomRules,
       isHost: isHost,
     );

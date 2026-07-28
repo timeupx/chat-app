@@ -21,13 +21,19 @@ class LiveRoomException implements Exception {
 
 /// A single chat message returned by the message-history endpoint.
 class LiveMessageModel {
+  final String userId;
   final String username;
   final String message;
 
-  const LiveMessageModel({required this.username, required this.message});
+  const LiveMessageModel({
+    required this.userId,
+    required this.username,
+    required this.message,
+  });
 
   factory LiveMessageModel.fromJson(Map<String, dynamic> json) {
     return LiveMessageModel(
+      userId: json['userId'] as String? ?? '',
       username: json['name'] as String? ?? 'Unknown',
       message: json['message'] as String? ?? '',
     );
@@ -89,9 +95,12 @@ class LiveRoomService {
     return LiveRoomModel.fromJson(body['data'] as Map<String, dynamic>);
   }
 
+  /// Creates a room. Cover image is resolved server-side from the host's
+  /// profile photo — clients no longer upload a separate room image.
   Future<LiveRoomModel> createRoom({
     required String roomName,
-    required String roomImage,
+    String filterName = 'Natural',
+    int slotCount = 6,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/live-rooms');
     final response = await http
@@ -100,12 +109,21 @@ class LiveRoomService {
           headers: await _headers(),
           body: jsonEncode({
             'roomName': roomName,
-            'roomImage': roomImage,
+            'filterName': filterName,
+            'slotCount': slotCount,
           }),
         )
         .timeout(_timeout);
     final body = _unwrap(response);
     return LiveRoomModel.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  /// Current user's profile (includes [photo] for avatar / room cover).
+  Future<Map<String, dynamic>> getMyProfile() async {
+    final uri = Uri.parse('$_baseUrl/api/user/profile');
+    final response = await http.get(uri, headers: await _headers()).timeout(_timeout);
+    final body = _unwrap(response);
+    return body['data'] as Map<String, dynamic>;
   }
 
   Future<void> goLive(String roomId) async {

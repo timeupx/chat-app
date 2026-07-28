@@ -14,7 +14,11 @@ const allowedOrigins = [
 function isOriginAllowed(origin: string | undefined): boolean {
 	if (!origin) return true;
 	if (allowedOrigins.includes(origin)) return true;
-	return /^http:\/\/localhost:\d+$/.test(origin);
+	if (/^http:\/\/localhost:\d+$/.test(origin)) return true;
+	// Same-Wi‑Fi LAN testing (phone / another laptop hitting this Mac).
+	if (/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin)) return true;
+	if (/^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin)) return true;
+	return false;
 }
 
 export function initSocket(httpServer: HttpServer): Server {

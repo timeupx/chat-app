@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../models/viewer_model.dart';
 import '../services/room_socket_service.dart';
 
-/// Host-only moderation panel: current viewers with Ban / Chat Mute / Warn /
-/// Invite-as-Guest actions. Backed live by [RoomSocketService.viewerList] -
-/// nothing here is mocked.
+/// Online viewers in the room. Hosts also get Ban / Mute / Warn / Invite
+/// actions. Backed live by [RoomSocketService.viewerList].
 class ViewerListSheet extends StatefulWidget {
-  const ViewerListSheet({super.key});
+  final bool isHost;
+
+  const ViewerListSheet({super.key, this.isHost = false});
 
   @override
   State<ViewerListSheet> createState() => _ViewerListSheetState();
@@ -17,7 +18,11 @@ class ViewerListSheet extends StatefulWidget {
 
 class _ViewerListSheetState extends State<ViewerListSheet> {
   final _roomSocket = RoomSocketService.instance;
-  List<ViewerModel> _viewers = [];
+  // Seed with whatever the service already knows - the broadcast stream
+  // below only carries *future* updates, so without this the sheet would
+  // show "No viewers yet" until the next unrelated join/leave event, even
+  // if viewers were already in the room when it was opened.
+  late List<ViewerModel> _viewers = _roomSocket.currentViewers;
   StreamSubscription<List<ViewerModel>>? _sub;
 
   @override
@@ -108,17 +113,24 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
           ),
           child: Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Viewers',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  'Online (${_viewers.length})',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Expanded(
                 child: _viewers.isEmpty
                     ? const Center(
-                        child: Text('No viewers yet', style: TextStyle(color: Colors.white54)),
+                        child: Text(
+                          'No one online yet',
+                          style: TextStyle(color: Colors.white54),
+                        ),
                       )
                     : ListView.builder(
                         controller: scrollController,
@@ -132,39 +144,78 @@ class _ViewerListSheetState extends State<ViewerListSheet> {
 
                           return ListTile(
                             leading: CircleAvatar(
-                              child: Text(viewer.name.isNotEmpty ? viewer.name[0].toUpperCase() : '?'),
+                              child: Text(
+                                viewer.name.isNotEmpty
+                                    ? viewer.name[0].toUpperCase()
+                                    : '?',
+                              ),
                             ),
-                            title: Text(viewer.name, style: const TextStyle(color: Colors.white)),
+                            title: Text(
+                              viewer.name,
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             subtitle: tags.isEmpty
                                 ? null
-                                : Text(tags, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                            trailing: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, color: Colors.white),
-                              onSelected: (action) {
-                                switch (action) {
-                                  case 'ban':
-                                    _promptBan(viewer);
-                                  case 'mute':
-                                    _roomSocket.chatMuteUser(viewer.userId);
-                                  case 'unmute':
-                                    _roomSocket.chatUnmuteUser(viewer.userId);
-                                  case 'warn':
-                                    _promptWarn(viewer);
-                                  case 'invite':
-                                    _roomSocket.inviteGuest(viewer.userId);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'ban', child: Text('Ban')),
-                                PopupMenuItem(
-                                  value: viewer.isMuted ? 'unmute' : 'mute',
-                                  child: Text(viewer.isMuted ? 'Chat Unmute' : 'Chat Mute'),
-                                ),
-                                const PopupMenuItem(value: 'warn', child: Text('Warn')),
-                                if (!viewer.isGuest)
-                                  const PopupMenuItem(value: 'invite', child: Text('Invite as Guest')),
-                              ],
-                            ),
+                                : Text(
+                                    tags,
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                            trailing: widget.isHost
+                                ? PopupMenuButton<String>(
+                                    icon: const Icon(
+                                      Icons.more_vert,
+                                      color: Colors.white,
+                                    ),
+                                    onSelected: (action) {
+                                      switch (action) {
+                                        case 'ban':
+                                          _promptBan(viewer);
+                                        case 'mute':
+                                          _roomSocket.chatMuteUser(
+                                            viewer.userId,
+                                          );
+                                        case 'unmute':
+                                          _roomSocket.chatUnmuteUser(
+                                            viewer.userId,
+                                          );
+                                        case 'warn':
+                                          _promptWarn(viewer);
+                                        case 'invite':
+                                          _roomSocket.inviteGuest(
+                                            viewer.userId,
+                                          );
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'ban',
+                                        child: Text('Ban'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: viewer.isMuted
+                                            ? 'unmute'
+                                            : 'mute',
+                                        child: Text(
+                                          viewer.isMuted
+                                              ? 'Chat Unmute'
+                                              : 'Chat Mute',
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'warn',
+                                        child: Text('Warn'),
+                                      ),
+                                      if (!viewer.isGuest)
+                                        const PopupMenuItem(
+                                          value: 'invite',
+                                          child: Text('Invite as Guest'),
+                                        ),
+                                    ],
+                                  )
+                                : null,
                           );
                         },
                       ),

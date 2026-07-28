@@ -5,12 +5,38 @@ class ChatMessageModel {
   final String message;
   final bool isSystemMessage;
 
+  /// The sender's user id, so hosts can tap a name in the chat feed and
+  /// moderate (ban/mute/warn/invite) without needing to find them in the
+  /// separate Viewer List sheet. Empty for messages with no real sender
+  /// (mocked gift lines, etc.) - moderation UI should treat that as
+  /// "not actionable".
+  final String userId;
+
+  /// Matches the server-persisted viewer-join system line ("rana joined").
+  static const joinedRoom = 'joined';
+
   const ChatMessageModel({
     required this.id,
     required this.username,
     required this.message,
     this.isSystemMessage = false,
+    this.userId = '',
   });
+
+  factory ChatMessageModel.fromHistory({
+    required String id,
+    required String username,
+    required String message,
+    String userId = '',
+  }) {
+    return ChatMessageModel(
+      id: id,
+      username: username,
+      message: message,
+      isSystemMessage: message == joinedRoom || message == 'entered the room',
+      userId: userId,
+    );
+  }
 
   static const List<ChatMessageModel> mockMessages = [
     ChatMessageModel(

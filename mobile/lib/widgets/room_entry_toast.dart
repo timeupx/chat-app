@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Temporary overlay shown inside a live room when a viewer fully enters:
-/// "[Username] entered the room".
+/// "admin joined" / "rana joined".
 class RoomEntryToast extends StatelessWidget {
   final String username;
 
@@ -23,7 +23,7 @@ class RoomEntryToast extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
             ),
             child: Text(
-              '$username entered the room',
+              '$username joined',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,

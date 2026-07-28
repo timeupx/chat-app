@@ -141,21 +141,24 @@ model TrustedDevice {
 // can be toggled live/offline many times (isLive) - the LiveKit room
 // identifier used for the actual video session is simply this row's `id`.
 model LiveRoom {
-  id        String   @id @default(cuid())
-  hostId    String
-  roomName  String
-  roomImage String
-  is18Plus  Boolean  @default(false)
-  roomRules String
-  isLive    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  /// One live room per host — enforced at DB level.
+  hostId     String   @unique
+  roomName   String
+  roomImage  String
+  is18Plus   Boolean  @default(false)
+  roomRules  String
+  /// Beauty filter preset chosen at room creation (e.g. Natural, Smooth).
+  filterName String   @default("Natural")
+  /// Bigo-style seat count: 3, 6, or 9. Host always occupies seat 1.
+  slotCount  Int      @default(6)
+  isLive     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relationships
   host     User          @relation(fields: [hostId], references: [id], onDelete: Cascade)
   messages LiveMessage[]
-
-  @@index([hostId])
 }
 
 // One row per chat message sent in a live room. Only the last 50 (by

@@ -33,8 +33,12 @@ app.use(
 			// Any http://localhost:<port> is allowed so Flutter Web (which
 			// picks a random dev port each run) always works locally.
 			const isLocalDevOrigin = /^http:\/\/localhost:\d+$/.test(origin);
+			// Same-Wi‑Fi LAN origins (physical devices / other machines).
+			const isLanOrigin =
+				/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
+				/^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
 
-			if (allowedOrigins.includes(origin) || isLocalDevOrigin) {
+			if (allowedOrigins.includes(origin) || isLocalDevOrigin || isLanOrigin) {
 				return callback(null, true);
 			}
 

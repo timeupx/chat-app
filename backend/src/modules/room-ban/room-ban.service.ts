@@ -35,4 +35,22 @@ const unbanUser = async (roomName: string, userId: string) => {
 	await db.roomBan.deleteMany({ where: { roomName, userId } });
 };
 
-export const RoomBanService = { isBanned, banUser, unbanUser };
+// Host-facing "who's banned from this room" panel - there was previously no
+// way to even see this list, so a host could ban someone but never unban
+// them again without directly touching the database.
+const listBanned = async (roomName: string) => {
+	const bans = await db.roomBan.findMany({
+		where: { roomName },
+		include: { user: { select: { name: true } } },
+		orderBy: { createdAt: "desc" },
+	});
+
+	return bans.map((ban) => ({
+		userId: ban.userId,
+		name: ban.user.name,
+		reason: ban.reason,
+		bannedAt: ban.createdAt,
+	}));
+};
+
+export const RoomBanService = { isBanned, banUser, unbanUser, listBanned };

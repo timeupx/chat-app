@@ -58,13 +58,14 @@ const goLive = catchAsync(async (req, res) => {
 
 const endLive = catchAsync(async (req, res) => {
 	const { userId } = req.user as JwtPayload;
-	const room = await LiveRoomService.setLive(req.params.id, userId, false);
+	// Intentional host exit deletes the room + chat (not just isLive=false).
+	const result = await LiveRoomService.deleteRoom(req.params.id, userId);
 
 	sendResponse(res, {
 		statusCode: 200,
 		success: true,
-		message: "Live stream ended",
-		data: room,
+		message: "Live room deleted",
+		data: result,
 	});
 });
 

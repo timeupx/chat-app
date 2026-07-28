@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/live_room_model.dart';
 import '../services/live_room_service.dart';
 import '../services/room_socket_service.dart';
-import 'host_screen.dart';
-import 'viewer_screen.dart';
+import 'live_room_screen.dart';
 
 enum _DetailStatus { loading, ready, error }
 
@@ -27,7 +26,7 @@ class LiveRoomDetailScreen extends StatefulWidget {
 class _LiveRoomDetailScreenState extends State<LiveRoomDetailScreen> {
   final _liveRoomService = LiveRoomService();
   final _roomSocket = RoomSocketService.instance;
-  StreamSubscription<({String roomId, bool isLive})>? _statusSub;
+  StreamSubscription<({String roomId, bool isLive, bool deleted})>? _statusSub;
 
   _DetailStatus _status = _DetailStatus.loading;
   LiveRoomModel? _room;
@@ -46,7 +45,12 @@ class _LiveRoomDetailScreenState extends State<LiveRoomDetailScreen> {
     // same global broadcast LiveRoomListScreen uses.
     _roomSocket.connectLobby();
     _statusSub = _roomSocket.roomStatusUpdates.listen((event) {
-      if (event.roomId == widget.roomId) _silentRefresh();
+      if (event.roomId != widget.roomId) return;
+      if (event.deleted) {
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
+      _silentRefresh();
     });
   }
 
@@ -105,9 +109,16 @@ class _LiveRoomDetailScreenState extends State<LiveRoomDetailScreen> {
       }
       if (!mounted) return;
 
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => HostScreen(roomName: room.id)));
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LiveRoomScreen(
+            roomName: room.id,
+            role: LiveRoomRole.host,
+            initialFilterName: room.filterName,
+            initialSlotCount: room.slotCount,
+          ),
+        ),
+      );
 
       // Refresh isLive/viewerCount once the host comes back from streaming.
       if (mounted) _load();
@@ -125,7 +136,13 @@ class _LiveRoomDetailScreenState extends State<LiveRoomDetailScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ViewerScreen(roomName: room.id, hostName: room.hostName),
+        builder: (_) => LiveRoomScreen(
+          roomName: room.id,
+          role: LiveRoomRole.viewer,
+          hostName: room.hostName,
+          initialFilterName: room.filterName,
+          initialSlotCount: room.slotCount,
+        ),
       ),
     );
   }
